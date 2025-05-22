@@ -108,73 +108,17 @@ mdata_scores.enrich <- merge(metadata, scores.enrich, by=0)
 
 #gene_set_prefix <-  strsplit(gene_set_name, "\\.")[[1]][1]
 
+# save the whole SCE object with the scores but also only the score per cell 
 saveRDS(sce, paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/sce_CD14_Mono_Enrichment_Hallmarks_up_down_ns_Nhoods_SexM.rds"  ))
 
 saveRDS(mdata_scores.enrich, paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/Metadata_CD14_Mono_Enrichment_Hallmarks_up_down_ns_Nhoods_SexM.rds"  ))
 
 
-#Females 
-# 1. Get expression data 
-sex <- "F"
-direction <- "up"
-signif <- "ss"
 
+# Now, model how ISG-enrichment changes with age using a GLM
 
-print("1. Loading data ----------")
-#sce <- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/", cell_type, "_cell_type_sceraw.rds"))
-so <- readRDS(paste0(basepath, "Projects/scRNAseq/msopena/02_OneK1K_Age/robjects/03_Milo/01_Milo_NhoodMarkers/so_CD14_Mono_up_ss_Nhoods_Sex_F.rds"))
+# Read AUCell information 
 
-sce <- as.SingleCellExperiment(so)
-
-print("2. Loading senescence gene set ----------")
-hallmark_ifng_response_genes.fn <- paste0(data_path, '/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/HALLMARK_INTERFERON_GAMMA_RESPONSE.v2024.1.Hs.gmt')
-hallmark_ifna_response_genes.fn <-  paste0(data_path, '/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/HALLMARK_INTERFERON_ALPHA_RESPONSE.v2024.1.Hs.gmt')
-hallmark_ifng_response_genes <- unlist(geneIds(getGmt(hallmark_ifng_response_genes.fn)))
-hallmark_ifna_response_genes <- unlist(geneIds(getGmt(hallmark_ifna_response_genes.fn)))
-
-## Inflammatory response
-hallmark_inflammatory_response_genes.fn <- paste0(data_path, '/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/HALLMARK_INFLAMMATORY_RESPONSE.v2024.1.Hs.gmt')
-hallmark_inflammatory_response_genes <- unlist(geneIds(getGmt(hallmark_inflammatory_response_genes.fn)))
-
-## Select genes
-hallmark_ifn_response_genes <- intersect(hallmark_ifng_response_genes, hallmark_ifna_response_genes)
-hallmark_inflammatory_exclusive <- setdiff(hallmark_inflammatory_response_genes,hallmark_ifn_response_genes)
-hallmark_ifn_exclusive <- setdiff(hallmark_ifn_response_genes, hallmark_inflammatory_response_genes)
-gsea_hallmark.list <- list(hallmark_ifna_response_score = hallmark_ifna_response_genes,
-                           hallmark_ifng_response_score = hallmark_ifng_response_genes,
-                           hallmark_isg_score = hallmark_ifn_exclusive,
-                           hallmark_inflammatory_score = hallmark_inflammatory_exclusive)
-
-
-
-
-print("3.Running GSEA using AUCell ----------")
-
-set.seed(42)
-# bpparam <- MulticoreParam(progressbar=T, workers=8, log = T, stop.on.error = F)
-# register(bpparam)
-
-sce <- runEscape(sce, 
-                 method = method,
-                 gene.sets = gsea_hallmark.list, 
-                 min.size = 0,
-                 groups= 5000,
-                 new.assay.name = paste0("escape.", method), BPPARAM=bpparam)
-
-
-
-sce <- performNormalization(sce, 
-                            assay = paste0("escape.", method), 
-                            gene.sets = gsea_hallmark.list,  scale.factor = sce$nFeature_RNA)
-
-
-scores.enrich <- t(altExp(sce)@assays@data[[paste0("escape.", method)]]) %>% as.data.frame()
-
-mdata_scores.enrich <- merge(metadata, scores.enrich, by=0)
-
-#gene_set_prefix <-  strsplit(gene_set_name, "\\.")[[1]][1]
-saveRDS(mdata_scores.enrich, paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/Metadata_CD14_Mono_Enrichment_Hallmarks_up_ss_Nhoods_SexF.rds"  ))
-#saveRDS(sce, paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/sce_CD14_Mono_Enrichment_Hallmarks_up_ss_Nhoods_SexF.rds"  ))
 
 mdata_scores.enrich_F <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/03_EnrichmentISG/Metadata_CD14_Mono_Enrichment_Hallmarks_up_ss_Nhoods_SexF.rds"  ))
 mdata_scores.enrich_F$sex <- "Females"
@@ -182,7 +126,7 @@ mdata_scores.enrich_M <-readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjec
 mdata_scores.enrich_M$sex <- "Males"
 mdata_scores.enrich <- rbind(mdata_scores.enrich_M, mdata_scores.enrich_F)
 
-
+# Read nhood information 
 da_list_F <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/03_Milo/02_NhoodMarkers/Nhood-cell_id_df_Sex_F.rds" )) %>% dplyr::filter(cell_type_nhood== "CD14 Mono")
 da_list_M <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/03_Milo/02_NhoodMarkers/Nhood-cell_id_df_Sex_M.rds" )) %>% dplyr::filter(cell_type_nhood== "CD14 Mono")
 
@@ -195,16 +139,17 @@ da_results <- rbind(da_results_F, da_results_M)
 da_list_F <- da_list_F[da_list_F$Nhood %in% da_results_F$Nhood,]
 da_list_M <- da_list_M[da_list_M$Nhood %in% da_results_M$Nhood,]
 
+# Subset to the cells that are in the nhood of interest
 mdata_scores.enrich <- mdata_scores.enrich[mdata_scores.enrich$Row.names %in% c(da_list_F$cell_id, da_list_M$cell_id),]
 
 da_list <- rbind(da_list_F, da_list_M)
 
 mdata_scores.enrich <- mdata_scores.enrich %>% left_join(da_list, by=c("Row.names"="cell_id"))
 
-
 table(mdata_scores.enrich$sex)
 
 
+# For each gene set modell the enrichment with age across cell types
 library(glmmTMB)
 model_enrichment <- function(hallmark){
   auc_df_m_term <- as.data.frame(mdata_scores.enrich[,c(hallmark, "Age", "assignment", "sex", "date", "Nhood")])

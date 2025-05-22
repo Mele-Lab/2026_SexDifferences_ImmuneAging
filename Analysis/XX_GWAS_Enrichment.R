@@ -50,13 +50,14 @@ perform_fisher_test_and_collect <- function(cell_file, disease_gene_dict, sex_sp
   for (trait in names(disease_gene_dict)) {
     if(sex_spec_degs == T){
       cell <-  str_extract(cell_file, "(?<=M_|F_)[^\\.rds]+")
+      print(cell)
       sex_spec <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/07_DEA_SexAge/DEG_genes_only_", sex, ".rds"))
       sex_spec_genes <- sex_spec %>% filter( celltype == cell) %>% pull(gene)
       de_genes <- data %>% filter(gene %in% sex_spec_genes) %>% pull(gene)
       non_de_genes <- data %>% filter(!gene %in% de_genes) %>% pull(gene)
     }else{
-      de_genes <- data %>% filter(adj.P.Val < 0.05) %>% pull(gene)
-      non_de_genes <- data %>% filter(adj.P.Val >= 0.05) %>% pull(gene)
+      de_genes <- data %>% filter(fdr < 0.05) %>% pull(gene)
+      non_de_genes <- data %>% filter(fdr >= 0.05) %>% pull(gene)
     }
 
     in_gwas_de <- sum(de_genes %in% disease_gene_dict[[trait]])
@@ -87,9 +88,10 @@ perform_fisher_test_and_collect <- function(cell_file, disease_gene_dict, sex_sp
 # Example usage:
 
 # Set file paths
-disease_gene_dict_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/ordered_gene_dictionary.rds")  # RDS file containing the disease-gene dictionary
-all_f_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/07_DEA_SexAge/AllCells_F_deaTopTable.rds")  # RDS file for females
-all_m_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/07_DEA_SexAge/AllCells_M_deaTopTable.rds")   # RDS file for males
+#disease_gene_dict_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/ordered_gene_dictionary.rds") # RDS file containing the disease-gene dictionary
+disease_gene_dict_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/ordered_gene_dictionary_allGWAS.rds") # RDS file containing the disease-gene dictionary
+all_f_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells.rds")  # RDS file for females
+all_m_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells.rds")   # RDS file for males
 output_dir_f <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/F/")
 output_dir_m <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/M/")
 fisher_output_file <- paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/FisherResults/")  # Output file for all significant results
@@ -119,7 +121,9 @@ results_m$sex <- "Males"
 # Combine all significant results
 all_results <- bind_rows(results_f, results_m)
 # Save all significant results to a single CSV file
-saveRDS(all_results, paste0(fisher_output_file, "FisherResults_AllDEGs.rds"))
+#saveRDS(all_results, paste0(fisher_output_file, "FisherResults_AllDEGs.rds"))
+saveRDS(all_results, paste0(fisher_output_file, "FisherResults_AllDEGs_allGWAS.rds"))
+
 
 # b. Perform Fisher test with sex-specific age_DEGs --
 cell_files_f <- list.files(output_dir_f, full.names = TRUE)
@@ -132,5 +136,38 @@ results_m$sex <- "Males"
 # Combine all significant results
 all_results <- bind_rows(results_f, results_m)
 # Save all significant results to a single CSV file
-saveRDS(all_results, paste0(fisher_output_file, "FisherResults_SexSpecificDEGs.rds"))
+saveRDS(all_results, paste0(fisher_output_file, "FisherResults_SexSpecificDEGs_allGWAS.rds"))
 # The `all_significant_results` variable now contains all significant findings across all cell types and sexes.
+#saveRDS(all_results, paste0(fisher_output_file, "FisherResults_SexSpecificDEGs.rds"))
+
+
+
+
+
+
+#prepare dict with all GWAS terms 
+library(biomaRt)
+gwas <- readr::read_tsv(paste0(basepath, "Data/GWAScatalog/modified/full_gwas_catalog.parsed4_enrichments.geneids.tsv"))
+mart <- useMart("ensembl", dataset = "hsapiens_gene_ensembl")
+
+# Query the Ensembl database for Gene Symbols
+gene_info <- getBM(
+  attributes = c("ensembl_gene_id", "hgnc_symbol"),  # Ensembl ID and Gene Symbol
+  filters = "ensembl_gene_id",
+  values = gwas$gene,  # Your Ensembl IDs
+  mart = mart
+)
+
+# Merge the gene symbol data with your original data frame
+
+library(dplyr)
+data_merged <- gwas %>%
+  left_join(gene_info, by = c("gene" = "ensembl_gene_id"))
+
+data_cleaned <- data_merged %>%
+  distinct(hgnc_symbol, term, .keep_all = TRUE)
+
+data_list <- split(data_cleaned$hgnc_symbol, data_cleaned$term) 
+
+saveRDS(data_list, paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/ordered_gene_dictionary_allGWAS.rds"))
+                   

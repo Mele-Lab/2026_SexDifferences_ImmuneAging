@@ -32,7 +32,7 @@ source(paste0(data_path, "/msopena/01_meta-analysis_Age_Sex/scripts/themes.R"))
 
 #load metadata
 metadata <- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/metadata_processed.rds"))
-mdata_donor <- metadata[!duplicatey(metadata$assignment),]
+mdata_donor <- metadata[!duplicated(metadata$assignment),]
 order_cells_old<- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/order_cells.rds"))
 order_cells<- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/new_order_cells.rds"))
 celltype_l1 <- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/celltypes_equivalence.rds"))
@@ -129,7 +129,7 @@ da_count <- reorder_cells(da_count, neworder = T)
 da_count <-da_count[!is.na(da_count$direction),]
 
 p_perc_nhoods <- ggplot(da_count, aes(y=celltype, x=prop , fill=sex)) + geom_bar( stat="identity", position="dodge", alpha=0.9)+scale_fill_manual(values= c("Males"=red, "Females"=blue))+
-  theme+facet_grid(celltype_l1~direction, scales="free_y", space="free")+xlab("Proportion of Nhoods")+scale_x_continuous(breaks = c(0, 0.5, 1))+theme(axis.text=element_text(size=10), legend.position="right")+
+  theme+facet_grid(celltype_l1~direction, scales="free_y", space="free")+xlab("Proportion of Nhoods")+scale_x_continuous(breaks = c(0, 0.5, 1))+theme(axis.text=element_text(size=10), legend.position="top")+
   geom_text(aes(label=count), position =  position_dodge(width = 0.9), size=3)+ylab("")
 
 
@@ -142,7 +142,7 @@ p_nnhoods <- ggplot(nnhoods, aes(y=celltype, x=n)) + geom_bar(stat="identity", a
 
 
 library(patchwork)
-Fig2B <- p_nnhoods +p_perc_nhoods+plot_layout(width=c(1, 5))
+Fig2B <- p_perc_nhoods+plot_layout(width=c(1, 5))
 
 
 
@@ -390,12 +390,34 @@ so_F <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/01_Mi
 so_M <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/03_Milo/01_Milo_NhoodMarkers/so_CD14_Mono_down_up_ns_Nhoods_Sex_M.rds" ))
 
 #Feature plot 
-ft_ISG15<- FeaturePlot(so_F, features = "ISG15" , pt.size = 0.2, cols = c("lightgrey", blue) )&theme&xlab("")&ylab("")&
+library(RColorBrewer)
+
+# Get the YlGnBu palette
+base_palette <- brewer.pal(7, "YlGnBu")
+base_palette[7] <- blue
+base_palette[6] <- "#237294"
+base_palette[1] <- "white"
+base_palette[2] <- "lightgrey"
+my_palette <- colorRampPalette(base_palette)(100)
+
+
+base_palette <- brewer.pal(6, "YlGnBu")
+base_palette[6] <- "#002c40"
+base_palette[5] <- "#0c5678"
+base_palette[4] <- "#237294"
+base_palette[3] <- "#69A5BF"
+base_palette[2] <- "#8DC0D6"
+base_palette[1] <- "lightgrey"
+my_palette <- colorRampPalette(base_palette)(100)
+
+
+ft_ISG15<- FeaturePlot(so_F, features = "ISG15" , pt.size = 0.2)&theme&xlab("")&ylab("")&   scale_color_gradientn(colors = my_palette) &
   theme(aspect.ratio=1,axis.title=element_text(size=10),plot.title = element_text(size = 15, hjust = 0.5, face="bold.italic"),
         panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text=element_blank(), axis.ticks=element_blank() )&labs(color="log(CP10K+1)")
 ft_ISG15$data <- ft_ISG15$data[order(ft_ISG15$data$ISG15),]
+ft_ISG15
 
-ft_IL1B<- FeaturePlot(so_F, features = "IL1B" , pt.size = 0.2, cols = c("lightgrey", blue) )&theme&xlab("")&ylab("")&
+ft_IL1B<- FeaturePlot(so_F, features = "IL1B" , pt.size = 0.2 )&scale_color_gradientn(colors = my_palette)&theme&xlab("")&ylab("")&
   theme(aspect.ratio=1,axis.title=element_text(size=10),plot.title = element_text(size = 15, hjust = 0.5, face="bold.italic"),
         panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text=element_blank(), axis.ticks=element_blank() )&labs(color="log(CP10K+1)")
 ft_IL1B$data <- ft_IL1B$data[order(ft_IL1B$data$IL1B),]
@@ -403,7 +425,7 @@ ft_IL1B$data <- ft_IL1B$data[order(ft_IL1B$data$IL1B),]
 library(patchwork)
 Fig5F_1 <- ft_ISG15 +ft_IL1B+ plot_layout(ncol=2)
 
-pdf(paste0(data_path, "/msopena/02_OneK1K_Age/figures/Fig5/Fig5F_Monocytes_UMAP.pdf"), width = 7.05, height = 4.22)
+pdf(paste0(data_path, "/msopena/02_OneK1K_Age/plots/Fig5F_Monocytes_UMAP.pdf"), width = 7.05, height = 4.22)
 Fig5F_1
 dev.off()
 
@@ -560,6 +582,19 @@ mk_CD8 <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/03_Milo/02_N
 
 so_CD8TEM <- readRDS(paste0(data_path,  "/msopena/02_OneK1K_Age/robjects/03_Milo/01_Milo_NhoodMarkers/so_CD8TEM_upNhoods_Sex_F.rds"))
 
+
+library(RColorBrewer)
+
+base_palette <- brewer.pal(6, "YlGnBu")
+base_palette[6] <- "#002c40"
+base_palette[5] <- "#0c5678"
+base_palette[4] <- "#237294"
+base_palette[3] <- "#69A5BF"
+base_palette[2] <- "#8DC0D6"
+base_palette[1] <- "lightgrey"
+my_palette <- colorRampPalette(base_palette)(100)
+
+
 plot_featurePlot <- function(gene, so, col){
   ft_GZMH <- FeaturePlot(so, features = gene , pt.size = 0.2, cols = c("lightgrey", col) )&theme& labs(
     x = "", 
@@ -568,7 +603,7 @@ plot_featurePlot <- function(gene, so, col){
     color = "log(CP10K+1)"  # This sets the legend title
   ) &
     theme(aspect.ratio=1, axis.title=element_text(size=10),plot.title = element_text(size = 15, hjust = 0.5, face="bold.italic"), panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text=element_blank(), axis.ticks=element_blank() )
+          panel.grid.minor = element_blank(), panel.background = element_blank(), axis.text=element_blank(), axis.ticks=element_blank() ) &scale_color_gradientn(colors = my_palette)
   ft_GZMH$data <- ft_GZMH$data[order(ft_GZMH$data[[gene]]),]
   return(ft_GZMH)
 }
@@ -730,14 +765,6 @@ FigS5K <- CD5_all+theme(legend.position="none", axis.text.x=element_blank())+yla
 #+CD5_all+LEF1_all+CXCR3_all+CD27_all+CD38_all+plot_layout(ncol = 3)
 
 
-
-
-
-
-
-
-
-
 # 8. CD5 BCR results (Fig.S3L ) ------ 
 #Asses clonality 
 
@@ -753,9 +780,9 @@ dev.off()
 
 
 # #plot model results 
-# p_downsampling_male <- readRDS( paste0(data_path, "/msopena/02_OneK1K_Age/robjects/19_BCRSeq/DiffBCR_seq_M_downsampling.rds"))
-# nclones_male <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/19_BCRSeq/DiffBCR_seq_M.rds"))
-# nclones_female <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/19_BCRSeq/DiffBCR_seq_F.rds"))
+p_downsampling_male <- readRDS( paste0(data_path, "/msopena/02_OneK1K_Age/robjects/19_BCRSeq/DiffBCR_seq_M_downsampling.rds"))
+nclones_male <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/19_BCRSeq/DiffBCR_seq_M.rds"))
+nclones_female <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/19_BCRSeq/DiffBCR_seq_F.rds"))
 # 
 # pvals_df <- rbind(p_downsampling_male, nclones_male %>% filter(term=="Age"), nclones_female%>% filter(term=="Age"))
 # pvals_df$fdr <- p.adjust(pvals_df$p.value, method = "fdr")
@@ -764,6 +791,11 @@ dev.off()
 # 
 # ggplot(pvals_df, aes(x=sex, y=-log10(fdr)))+geom_jitter(aes(size=data, color=data))+geom_boxplot(fill="white", outlier.shape = NA, alpha=0)+theme+scale_size_manual(values  =c(3, 1), name="")+
 #   geom_hline(yintercept = -log10(0.1), linetype='dashed')+scale_color_manual(values=c("Downsampling"="#777777", "All"=red), name="")+theme(legend.position="top")
+
+
+library(openxlsx)
+sheets <- list("BCR_results" = df, "nclones_with_age_M"= nclones_male, "nclones_with_age_F"=nclones_female)
+write.xlsx(sheets, paste0(data_path, '/msopena/02_OneK1K_Age/SupplementaryTables/TableS3B_BCR.xlsx'))
 
 
 # 9. Is CD5 B cell expansion driven by few donors? (Fig. S3M-O)----
@@ -806,6 +838,7 @@ cell_nhood_df_B <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/03_
 metadata_B <- metadata[cell_nhood_df_B$cell_id,]
 metadata_B$cell_id <- rownames(metadata_B)
 length(unique(metadata_B$assignment))
+metadata_B_count <- metadata_B %>% group_by(assignment) %>% count()
 
 FigS3N <- ggplot(metadata_B, aes(x=reorder(assignment, Age)))+geom_bar(stat="count", fill=red)+theme+theme(axis.text.x=element_blank())+ylab("nCells")+xlab("Donors")+theme(axis.ticks=element_blank())
 
@@ -1153,7 +1186,199 @@ sheets <- list( "DA_replicate1"=plot_replicates(2)[[2]], "DA_replicate2"= plot_r
 write.xlsx(sheets, paste0(data_path, '/msopena/02_OneK1K_Age/supplementary_tables/TableS7_Milo_set_subsamplings.xlsx'))
 
 
+#### REVISION ######
+
+# Plot results interacton
+
+da_results <- readRDS(paste0(data_path,  "/msopena/02_OneK1K_Age/robjects/03_Milo/DAA_results_cell_type_annotation_Interaction_NewPreprocessing_Subsampling_0.25_2.rds"))
+da_results <- readRDS(paste0(data_path,  "/msopena/02_OneK1K_Age/robjects/03_Milo/DAA_results_cell_type_annotation_NewPreprocessing_Subsampling_0.25_2.rds"))
 
 
+da_results$celltype <- da_results$cell_type
+da_results$direction <- ifelse(da_results$logFC < 0, "depleted", "enriched")
+da_results$significance <- ifelse(da_results$SpatialFDR < 0.05, "ss", "ns")
+da_results <- reorder_cells(da_results, reverse = T, neworder = T)
+# da_results$direction <- ifelse(da_results$logFC < 0, "down", "up")
+da_results[da_results$SpatialFDR > 0.05,]$direction <- NA
+da_results <- da_results[da_results$cell_type %in% cells_to_keep,]
+
+ggplot(da_results,aes(x=celltype, y=logFC, color=direction))+  geom_quasirandom(size = 0.4)+scale_color_manual(values= c("depleted"="#264653", "enriched"="#c15557"), na.value ="lightgrey",breaks = ~ .x[!is.na(.x)] )+
+  theme+coord_flip()+theme( axis.text = element_text(size = 12),axis.title=element_text(size=12), strip.text=element_text(size=13))+geom_hline(yintercept=0, linetype = "dashed")+theme(legend.position="top", legend.title=element_blank())+xlab("")+
+  facet_grid(celltype_l1~., scales="free", space="free")+
+  guides(color = guide_legend(override.aes = list(size=3)))
+
+
+# Check the donor distribution of other populations 
+clinical_info_final <- readRDS(paste0(basepath, "/Data/scRNAseq/Yazar2022/clinical_info_final.rds"))
+cell_nhood_df_F <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/03_Milo/02_NhoodMarkers/Nhood-cell_id_df_Sex_F.rds"))
+cell_nhood_df_M <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/03_Milo/02_NhoodMarkers/Nhood-cell_id_df_Sex_M.rds"))
+
+autoimmune_donors <- clinical_info_final[clinical_info_final$X08_Autoimmune_Disease == "Y" | clinical_info_final$X11_Rheumatoid_arthritis == "Y",]$donor_id
+
+
+
+plot_cum_plot <- function(cell_nhood_df, celltype, color ){
+  cell_nhood_df_B <-  cell_nhood_df%>% filter(cell_type ==celltype & SpatialFDR < 0.05)
+  metadata_B <- metadata[cell_nhood_df_B$cell_id,]
+  metadata_B$cell_id <- rownames(metadata_B)
+  metadata_B$autoimmune <- ifelse(metadata_B$assignment %in% autoimmune_donors, "yes", "no")
+  print(length(unique(metadata_B$assignment)))
+  print(length(unique(metadata_B[metadata_B$autoimmune == "yes",]$assignment)))
+  
+  FigS3N <- ggplot(metadata_B, aes(x=reorder(assignment, Age)))+geom_bar(stat="count", fill=color)+theme+facet_wrap(~cell_type)+
+    theme(axis.text.x=element_blank())+ylab("nCells")+xlab("Donors")+theme(axis.ticks=element_blank(), panel.grid.minor = element_blank(),panel.grid.major = element_blank())
+  
+  pdf(paste0(data_path, "msopena/02_OneK1K_Age/figures/NDonors_", celltype, ".pdf"), width =3.03, height = 2.72 )
+  print(FigS3N)
+  dev.off()
+  
+  # color by they either have autoimmune or not 
+  Fig_autoimmune <- ggplot(metadata_B, aes(x=reorder(assignment, Age)))+geom_bar(stat="count", aes(fill=autoimmune))+theme+facet_wrap(~cell_type)+
+    theme(axis.text.x=element_blank())+ylab("nCells")+xlab("Donors")+theme(axis.ticks=element_blank(), legend.position="top")+scale_fill_manual(values=c("yes"=color, "no"="grey"))+
+    theme(panel.grid.minor = element_blank(),panel.grid.major = element_blank())
+
+  pdf(paste0(data_path, "msopena/02_OneK1K_Age/figures/NDonors_", celltype, "_autoimmune.pdf"), width =3.03, height = 2.72 )
+  print(Fig_autoimmune)
+  dev.off()
+  
+  # from those donors that have this cell subpopulation, how many have autoimmune? 
+  ndonors <- metadata_B%>% group_by(autoimmune, cell_type) %>% count() 
+  
+  print(ndonors[ndonors$autoimmune =="yes",]$n/(ndonors[ndonors$autoimmune =="yes",]$n+ndonors[ndonors$autoimmune =="no",]$n) )
+  
+  ndonors_plot <- ggplot(ndonors, aes(x=autoimmune, y=n))+geom_bar(stat="identity", aes(fill=autoimmune))+theme+facet_wrap(~cell_type)+
+    theme()+ylab("nCells")+xlab("Autoimmune disease")+theme(axis.ticks=element_blank(), legend.position="none")+scale_fill_manual(values=c("yes"=color, "no"="grey"))
+  
+  pdf(paste0(data_path, "msopena/02_OneK1K_Age/figures/Ncells", celltype, "_autoimmune.pdf"), width =3.65, height = 3.65 )
+  print(ndonors_plot)
+  dev.off()
+  
+  donor_counts <- cell_nhood_df_B %>%merge(metadata_B, by="cell_id") %>% count(assignment, name = "cell_count") %>%
+    arrange(desc(cell_count)) %>%
+    mutate(
+      nDonors = row_number(),  # Cumulative number of donors
+      cumulative_cells = cumsum(cell_count),  # Cumulative sum of cells
+      cumulative_fraction = cumulative_cells / sum(cell_count)  # Fraction of total cells
+    )
+  
+  # Plot cumulative fraction of cells vs. number of donors
+  FigS3O <- ggplot(donor_counts, aes(x = as.numeric(nDonors), y = cumulative_fraction)) +
+    geom_line(color = color) +
+    #scale_y_continuous(limits = c(0,1)) +  
+    labs( x = "nDonors",
+          y = "Cumulative fraction of cells") +
+    theme(axis.text.x = element_text(angle = 45, hjust = 1))+ theme
+  
+  pdf(paste0(data_path, "msopena/02_OneK1K_Age/figures/FigS3O_Cummulative_distribution_", celltype,".pdf"), width =3.03, height = 2.72 )
+  print(FigS3O)
+  dev.off()
+  
+  }
+
+
+plot_cum_plot(cell_nhood_df_F, "CD8 TEM", blue)
+
+plot_cum_plot(cell_nhood_df_F, "CD14 Mono", blue)
+
+plot_cum_plot(cell_nhood_df_F, "CD4 TCM", blue)
+
+plot_cum_plot(cell_nhood_df_M, "B naive", red)
+
+
+cell_nhood_df_B <-  cell_nhood_df_F%>% filter(cell_type %in%c("CD8 TEM","CD14 Mono" ) & SpatialFDR < 0.05)
+metadata_B <- metadata[cell_nhood_df_B$cell_id,]
+metadata_B$cell_id <- rownames(metadata_B)
+metadata_B$autoimmune <- ifelse(metadata_B$assignment %in% autoimmune_donors, "yes", "no")
+metadata_B$cell_type <- factor(metadata_B$cell_type, levels=c("CD8 TEM","CD14 Mono" ))
+
+# color by they either have autoimmune or not 
+Fig_autoimmune <- ggplot(metadata_B, aes(x=reorder(assignment, Age)))+geom_bar(stat="count", aes(fill=autoimmune))+theme+facet_wrap(~cell_type, scales="free_y")+
+  theme(axis.text.x=element_blank())+ylab("nCells")+xlab("Donors")+theme(axis.ticks=element_blank(), legend.position="top")+scale_fill_manual(values=c("yes"=color, "no"="grey"))+
+  theme(panel.grid.minor = element_blank(),panel.grid.major = element_blank())
+
+
+library(dplyr)
+library(ggplot2)
+library(dplyr)
+library(ggplot2)
+
+# Count by autoimmune and cell_type
+ndonors <- metadata_B %>%
+  group_by(cell_type, autoimmune) %>%
+  summarise(n = n(), .groups = "drop")
+
+# Plot stacked 100% bars
+ndonors_plot <- ggplot(ndonors, aes(x = cell_type, y = n, fill = autoimmune)) +
+  geom_bar(stat = "identity", position = "fill") +
+  ylab("% of cells") +
+  xlab("") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("yes" = blue, "no" = "grey")) +
+  theme+theme(legend.position="top")+theme(axis.text=element_text(size=12))
+
+ndonors_plot
+ndonors_pct <- ndonors %>%
+  group_by(cell_type) %>%
+  mutate(pct = n / sum(n)) %>%
+  filter(autoimmune == "yes")
+
+
+cell_nhood_df_B <-  cell_nhood_df_F%>% filter(cell_type %in%c("CD4 TCM" ) & SpatialFDR < 0.05)
+
+metadata_B_enriched <- metadata[cell_nhood_df_B[cell_nhood_df_B$logFC > 0,]$cell_id,] %>% mutate("subpopulation"="CD4 Th22")
+metadata_B_dep <- metadata[cell_nhood_df_B[cell_nhood_df_B$logFC < 0,]$cell_id,] %>% mutate("subpopulation"="CD4 Th17")
+metadata_B <- rbind(metadata_B_dep, metadata_B_enriched)
+
+metadata_B$cell_id <- rownames(metadata_B)
+metadata_B$autoimmune <- ifelse(metadata_B$assignment %in% autoimmune_donors, "yes", "no")
+
+# color by they either have autoimmune or not 
+Fig_autoimmune <- ggplot(metadata_B, aes(x=reorder(assignment, Age)))+geom_bar(stat="count", aes(fill=autoimmune))+theme+facet_wrap(~subpopulation, scales="free_y")+
+  theme(axis.text.x=element_blank())+ylab("nCells")+xlab("Donors")+theme(axis.ticks=element_blank(), legend.position="top")+scale_fill_manual(values=c("yes"=color, "no"="grey"))+
+  theme(panel.grid.minor = element_blank(),panel.grid.major = element_blank())
+
+# Count by autoimmune and cell_type
+ndonors <- metadata_B %>%
+  group_by(subpopulation, autoimmune) %>%
+  summarise(n = n(), .groups = "drop")
+
+# Plot stacked 100% bars
+ndonors_plot <- ggplot(ndonors, aes(x = subpopulation, y = n, fill = autoimmune)) +
+  geom_bar(stat = "identity", position = "fill") +
+  ylab("% of cells") +
+  xlab("") +
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_manual(values = c("yes" = blue, "no" = "grey")) +
+  theme+theme(legend.position="top")+ theme(axis.text=element_text(size=12))
+
+ndonors_plot
+ndonors_pct <- ndonors %>%
+  group_by(subpopulation) %>%
+  mutate(pct = n / sum(n)) %>%
+  filter(autoimmune == "yes")
+
+
+
+#cumulative 
+
+donor_counts <- cell_nhood_df_B %>%
+  merge(metadata_B, by = "cell_id") %>%
+  count(subpopulation, assignment, name = "cell_count") %>%
+  arrange(subpopulation, desc(cell_count)) %>%
+  group_by(subpopulation) %>%
+  mutate(
+    nDonors = row_number(),                           # cumulative number of donors
+    cumulative_cells = cumsum(cell_count),            # cumulative sum of cells
+    cumulative_fraction = cumulative_cells / sum(cell_count) # fraction within subpopulation
+  ) %>%
+  ungroup()
+
+# Plot cumulative fraction of cells vs. number of donors
+FigS3O <- ggplot(donor_counts, aes(x = as.numeric(nDonors), y = cumulative_fraction)) +
+  geom_line(color = color) +facet_wrap(~subpopulation)+
+  #scale_y_continuous(limits = c(0,1)) +  
+  labs( x = "nDonors",
+        y = "Cumulative fraction of cells") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ theme
 
 

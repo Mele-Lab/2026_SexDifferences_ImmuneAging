@@ -552,7 +552,7 @@ nDonors_df <- reorder_cells(nDonors_df, reverse = F, neworder = T)
 nDonors_df <- nDonors_df %>% filter(celltype %in% unique(deg_all_data$celltype))
 
 
-pdegs_downsampling <- ggplot(deg_all_data, aes(x=celltype, y=n)) +geom_boxplot(data=deg_all_data[deg_all_data$iteration != 0,], outlier.shape = NA)+ geom_jitter(aes(size=class, alpha=class, color=sex))+facet_grid(celltype~sex,scales = "free")+theme+coord_flip()+
+pdegs_downsampling <- ggplot("deg_all_data", aes(x=celltype, y=n)) +geom_boxplot(data=deg_all_data[deg_all_data$iteration != 0,], outlier.shape = NA)+ geom_jitter(aes(size=class, alpha=class, color=sex))+facet_grid(celltype~sex,scales = "free")+theme+coord_flip()+
   theme(strip.text.y=element_text(angle=0, hjust = 0), axis.text.y=element_blank(), axis.ticks.y=element_blank())+xlab("")+scale_y_continuous(breaks = c(0, 1000, 3000))+
   scale_color_manual(values = c("M"=red, "F"=blue))+ylab("nDEGs")+scale_alpha_manual(values = c(0.5, 1))+scale_size_manual(values=c(2, 1))
 
@@ -570,7 +570,7 @@ FigS4A
 dev.off()
 
 
-#2. Plot downsampling to the same number of donord between males and females (Fig S4B)------
+#2. Plot downsampling to the same number of donors between males and females (Fig S4B)------
 nDonors_df <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/nDonors_downsampling.rds"))
 
 # plot the number of DEGs in each donwsampling iteration 
@@ -828,7 +828,7 @@ dev.off()
 
 
 #6. GO enrichments (Fig S4G ) -----
-reduced_all <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/02_Enrichments/01_SexStratified/01_GO/AllEnrichments_reduced.rds"))
+reduced_all <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/02_Enrichments/01_SexStratified/01_GO/AllEnrichments_reduced_autoimmune_excluding.rds"))
 reduced_all <- reorder_cells(reduced_all, neworder = T)
 reduced_all$direction <- factor(reduced_all$direction, levels=c("up", "down"))
 FigS4G <- ggplot(reduced_all, aes(x=celltype, y=reorder(parentTerm, n), fill=type, color=type))+geom_dotplot(data=reduced_all[reduced_all$direction == "down",], stackgroups=T, stackdir = "center",binaxis = "y", dotsize = 2, width=0.9)+geom_dotplot( data=reduced_all[reduced_all$direction == "up",], stackgroups=T, stackdir = "center",binaxis = "y", dotsize = 0.7, width=0.9)+theme +scale_y_discrete(labels = label_wrap(50))+
@@ -851,9 +851,24 @@ deg_subpopulations_list <-split(deg_subpopulations_df, deg_subpopulations_df$sub
 names(deg_subpopulations_list) <- paste0("DEA_", names(deg_subpopulations_list))
 
 
+# read overlap with hallmark genes 
+hallmark_androgen<- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/01_Chromosomal_Hormones/Fisher_hallmark_genes_androgen.rds"))
+hallmark_estrogen<- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/01_Chromosomal_Hormones/Fisher_hallmark_genes_estrogen.rds"))
+motif_enrichment <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/01_Chromosomal_Hormones/Motif_enrichment.rds"))
+
+
 library(openxlsx)
-sheets <- list("ageDEGs_Females" =deg_F , "ageDEGs_Males"= deg_M, "age_sex_DEGs"=deg_interaction, "ageDEGs_donorDownsampling"=degs_downsampling,
-               "ageDEGs_sexDownsampling"=deg_all_ds, "GO_enirichments"=reduced_all)
+sheets <- list("ageDEGs_Females" =deg_F %>%filter(fdr < 0.05) , "ageDEGs_Males"= deg_M %>% filter(fdr <0.05), "age_sex_DEGs"=deg_interaction, "ageDEGs_donorDownsampling"=deg_ds_count,
+               "ageDEGs_sexDownsampling"=deg_all_count, "Overlap_Hallmark_Androgen"=hallmark_androgen,"Overlap_Hallmark_Estrogen"=hallmark_estrogen,
+               "motif_enrichment"=motif_enrichment, "GO_enirichments"=reduced_all)
+
+sheets <- list( "ageDEGs_donorDownsampling"=deg_ds_count,
+               "ageDEGs_sexDownsampling"=deg_all_count)
+write.xlsx(sheets, paste0(data_path, '/msopena/02_OneK1K_Age/SupplementaryTables/TableS4_DifferentialExpression_linear_subset.xlsx'))
+
+
+
+
 write.xlsx(sheets, paste0(data_path, '/msopena/02_OneK1K_Age/SupplementaryTables/TableS4_DifferentialExpression_linear.xlsx'))
 
 
@@ -868,28 +883,28 @@ degs_meno$age_bins <- ifelse(degs_meno$menopause == "premenopausal", "[19, 50]",
                              ifelse(degs_meno$menopause == "perimenopausal", "[34, 65]", "[51, 82]"))
 celltype_nDonors <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/17_NonLinear/DEGs_menopause_log2cpm_all_data_nDonors.rds"))
 
-degs_meno_celltype <- degs_meno %>% dplyr::filter(fdr< 0.05 & repetition=="all_data" & celltype %in% celltype_nDonors) %>%
-  dplyr::group_by(sex, menopause, celltype) %>% dplyr::count() %>% mutate("nDEGs"=n)
+degs_meno_celltype <- degs_meno %>% dplyr::filter(fdr< 0.05 & repetition=="1" & celltype %in% celltype_nDonors) %>%
+  dplyr::group_by(sex, age_bins, celltype) %>% dplyr::count() %>% mutate("nDEGs"=n)
 
 degs_meno_celltype$celltype <- gsub("_", " ", degs_meno_celltype$celltype)
 degs_meno_celltype$celltype <- gsub("NK CD56bright", "NK_CD56bright",degs_meno_celltype$celltype)
 
 mdata_meno <- metadata %>%
-  mutate(menopause= case_when(
-    Age <= 50 ~ "premenopausal",
-    Age >= 34 & Age <= 65 ~ "perimenopausal",
-    Age > 50 & Age <= 82 ~ "postmenopausal"
-  )) %>% group_by(cell_type, menopause, Gender) %>%
-  filter(!is.na(menopause)) %>%
+  mutate(age_bins= case_when(
+    Age <= 50 ~ "[19, 50]",
+    Age >= 34 & Age <= 65 ~ "[34, 65]",
+    Age > 50 & Age <= 82 ~ "[51, 82]"
+  )) %>% group_by(cell_type, age_bins, Gender) %>%
+  filter(!is.na(age_bins)) %>%
   summarise(nDonors = n_distinct(assignment), .groups = "drop")%>%mutate("celltype" = cell_type)%>%mutate("sex"=Gender)
 
 
-degs_mono_count <- degs_meno_celltype %>% left_join(mdata_meno, by = c("celltype", "menopause", "sex")) 
-degs_mono_count$age_bins <- ifelse(degs_mono_count$menopause == "premenopausal", "[19, 50]", 
-                                   ifelse(degs_mono_count$menopause == "perimenopausal", "[34, 65]", "[51, 82]"))
+degs_mono_count <- degs_meno_celltype %>% left_join(mdata_meno, by = c("celltype", "age_bins", "sex")) 
+# degs_mono_count$age_bins <- ifelse(degs_mono_count$menopause == "premenopausal", "[19, 50]", 
+#                                    ifelse(degs_mono_count$menopause == "perimenopausal", "[34, 65]", "[51, 82]"))
 degs_mono_count$nDEGs_nDonors <- degs_mono_count$nDEGs / degs_mono_count$nDonors
 # degs_mono_count <- degs_mono_count[degs_mono_count$celltype %in% c(cells_to_keep, "NK Proliferating"),]
-degs_mono_count$menopause <- factor(degs_mono_count$menopause, levels=c("premenopausal", "perimenopausal", "postmenopausal"  ))
+#degs_mono_count$menopause <- factor(degs_mono_count$age_bins, levels=c("premenopausal", "perimenopausal", "postmenopausal"  ))
 degs_mono_count$celltype <- gsub("NK CD56bright", "NK_CD56bright",degs_mono_count$celltype)
 
 degs_mono_count <- reorder_cells(degs_mono_count, reverse = T)
@@ -1497,6 +1512,8 @@ go_reduced_all <- merge(go_df, go_reduced, by.x="Description", by.y="term")
 
 saveRDS(go_reduced_all, paste0(data_path, "msopena/02_OneK1K_Age/robjects/17_NonLinear/Cluster_CD4Naive_enrichments.rds"))
 
+go_reduced_all <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/17_NonLinear/Cluster_CD4Naive_enrichments.rds"))
+
 go_reduced_count <- go_reduced_all %>%
   group_by(parentTerm, clust, sex) %>%
   tally() %>%
@@ -1549,3 +1566,353 @@ write.xlsx(sheets, paste0(data_path, '/msopena/02_OneK1K_Age/SupplementaryTables
 
 
 
+library("org.Hs.eg.db"); library(AnnotationDbi);library(readxl)
+
+# Review figures --- 
+all_F<- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells.rds"))%>%mutate(sex="Female")
+deg_chr <- dea_sex_annotate(deg_both) 
+
+deg_chr_count <- deg_chr%>% filter(celltype!="Platelet")%>%group_by(celltype,chr_spec.escapee, sex )%>% count()%>% group_by(celltype, sex) %>%
+  mutate(
+    total = sum(n),
+    perc = (n / total) * 100
+  ) %>%
+  ungroup()
+deg_chr_count <- reorder_cells(deg_chr_count, neworder = T, reverse = T)
+
+
+# number age-DEGs colored by chromosomal
+ggplot(deg_chr_count, aes(x = celltype, y = n, fill = chr_spec.escapee)) + geom_bar(stat="identity") +
+  ylab("Number of DEGs") +xlab("") +
+  facet_grid(celltype_l1 ~ sex, scales = "free", space = "free") +
+  theme+
+  scale_y_continuous(labels = abs, limits = c(0, 1300), breaks = c( 0, 400, 800, 1200)) +
+  theme( axis.text = element_text(size = 11), axis.text.x = element_text(size = 10),legend.position = "top",strip.background = element_blank(), legend.margin = margin(r = 10, l = 5, t = 5, b = 2),
+         legend.key.size = unit(15, "pt")) +
+  coord_flip() +
+ scale_fill_manual(values = c("autosomal_chr" = "#808080", "PAR" = "#8fba8e","chrX"=blue, "chrY"=red , "PAR.escapee"="#8580c2",    "chrX.escapee"=  "#E76F51" ), name="") +
+  guides(  color=guide_legend(override.aes = list(size=1)))
+
+#"NK" = "#8580c2" , "Mono"= "#c27ba0",    "CD8 T"="#8fba8e",   "other T"= "#1A9A7D",  "B" =  "#E76F51" 
+
+
+# percentage of age-DEGs colored by chromosome
+ggplot(deg_chr_count, aes(x = celltype, y = perc, fill = chr_spec.escapee)) + geom_bar(stat="identity") +
+  ylab("Percentage of DEGs") +xlab("") +
+  facet_grid(celltype_l1 ~ sex, scales = "free", space = "free") +
+  theme+
+  #scale_y_continuous(labels = abs, limits = c(0, 1300), breaks = c( 0, 400, 800, 1200)) +
+  theme( axis.text = element_text(size = 11), axis.text.x = element_text(size = 10),legend.position = "top",strip.background = element_blank(), legend.margin = margin(r = 10, l = 5, t = 5, b = 2),
+         legend.key.size = unit(15, "pt")) +
+  coord_flip() +
+  scale_fill_manual(values = c("autosomal_chr" = "#808080", "PAR" = "#8fba8e","chrX"=blue, "chrY"=red , "PAR.escapee"="#8580c2",    "chrX.escapee"=  "#E76F51" ), name="") +
+  guides(  color=guide_legend(override.aes = list(size=1)))
+
+
+# test with a fisher
+
+
+
+all_F_chr <- dea_sex_annotate(all_F) 
+deg_F_chr <- dea_sex_annotate(deg_F) 
+
+
+
+
+
+
+library(dplyr)
+library(tidyr)
+results_chrX <- deg_chr_count %>% filter(!chr_spec %in% c("autosomal_chr","chrY")) %>% dplyr::select(celltype, sex, chr_spec.escapee, n) %>% pivot_wider(names_from = c(sex, chr_spec), values_from = n,values_fill = 0) %>%
+  rowwise() %>% mutate(fisher = list(fisher.test(matrix(c(Female_chrX, Female_autosomal_chr,Male_chrX,   Male_autosomal_chr), nrow=2, byrow=TRUE)))) %>%mutate(OR = fisher$estimate,
+  pval = fisher$p.value) %>%ungroup() %>%mutate(FDR = p.adjust(pval, method="fdr"))
+
+
+results_chrPAR <- deg_chr_count %>% filter(chr_spec %in% c("autosomal_chr","PAR")) %>% dplyr::select(celltype, sex, chr_spec.escapee, n) %>% pivot_wider(names_from = c(sex, chr_spec), values_from = n,values_fill = 0) %>%
+  rowwise() %>% mutate(fisher = list(fisher.test(matrix(c(Female_PAR, Female_autosomal_chr,Male_PAR,   Male_autosomal_chr), nrow=2, byrow=TRUE)))) %>%mutate(OR = fisher$estimate,
+                                                                                                                                                               pval = fisher$p.value) %>%ungroup() %>%mutate(FDR = p.adjust(pval, method="fdr"))
+
+
+results_escapee <- deg_chr_count %>% filter(chr_spec.escapee %in% c("autosomal_chr", "chrX.escapee")) %>% dplyr::select(celltype, sex, chr_spec.escapee, n) %>% pivot_wider(names_from = c(sex, chr_spec.escapee), values_from = n,values_fill = 0) %>%
+  rowwise() %>% mutate(fisher = list(fisher.test(matrix(c(Female_chrX.escapee, Female_autosomal_chr,Male_chrX.escapee,   Male_autosomal_chr), nrow=2, byrow=TRUE)))) %>%mutate(OR = fisher$estimate, pval = fisher$p.value) %>%ungroup() %>%mutate(FDR = p.adjust(pval, method="fdr"))
+
+                                                                                                                                                             
+
+
+
+#plot results DEA accounting per autoimmune donors 
+
+dea_autoimmune_F <- lapply(unique(gsub(" ", "_", order_cells$cell_type)),function(celltype) {
+  filepath <- paste0(data_path, "msopena/robjects/pseudobulk_inrt_lmer/sum/F/nCells_per_donor/cell_type/", celltype, "/date/Age/min_prop.0.4/autoimmune_status//Age.lmer_nearZeroVar.by_metric.rds")
+  if(file.exists(filepath)){
+    x <- readRDS(filepath)
+    x$celltype <- celltype
+    return(x)
+  }})
+
+dea_autoimmune_F_df <- do.call(rbind.data.frame, dea_autoimmune_F)
+dea_autoimmune_F_df$fdr <- dea_autoimmune_F_df$fdr.log2cpm
+deg_F<- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells.rds")) 
+deg_F$signif <- ifelse(deg_F$fdr <0.05, "signif", "non_signif")
+#saveRDS(dea_autoimmune_F_df, paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_autoimmune_excluding.rds"))
+
+
+
+
+dea_autoimmune_M <- lapply(unique(gsub(" ", "_", order_cells$cell_type)),function(celltype) {
+  print(celltype)
+  filepath <- paste0(data_path, "msopena/robjects/pseudobulk_inrt_lmer/sum/M/nCells_per_donor/cell_type/", celltype, "/date/Age/min_prop.0.4/autoimmune_status//Age.lmer_nearZeroVar.by_metric.rds")
+  if(file.exists(filepath)){
+    x <- readRDS(filepath)
+    x$celltype <- celltype
+    return(x)
+  }})
+
+dea_autoimmune_M_df <- do.call(rbind.data.frame, dea_autoimmune_M)
+
+dea_autoimmune_M_df$fdr <- dea_autoimmune_M_df$fdr.log2cpm
+deg_M<- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells.rds")) 
+
+#saveRDS(dea_autoimmune_M_df, paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells_autoimmune_excluding.rds"))
+
+
+
+
+library(dplyr)
+
+overlap_autoimmune <- function(ct, dea_autoimmune_F_df, deg_F) {
+  print(ct)
+  
+  dea_autoimmune_F_df$celltype <- gsub("_", " ", dea_autoimmune_F_df$celltype)
+  
+  df_autoimmune <- dea_autoimmune_F_df %>%
+    dplyr::filter(celltype == ct) %>%
+    mutate(gene = ID) %>%
+    select("fdr", "gene") %>%
+    mutate(signif = ifelse(fdr < 0.05, "signif", "non_signif"))
+  
+  df_regular <- deg_F %>%
+    dplyr::filter(celltype == ct) %>%
+    mutate(gene = ID) %>%
+    select("fdr", "gene") %>%
+    mutate(signif_regular = ifelse(fdr < 0.05, "signif", "non_signif"))
+  
+  combined_df <- df_autoimmune %>%
+    dplyr::rename(signif_autoimmune = signif) %>%
+    left_join(df_regular, by = "gene")
+  
+  combined_df <- combined_df %>%
+    mutate(category = case_when(
+      signif_autoimmune == "signif" & signif_regular == "signif" ~ "overlap_both",
+      signif_autoimmune == "signif" & (is.na(signif_regular) | signif_regular != "signif") ~ "excluding_autoimmune",
+      signif_regular == "signif" & (is.na(signif_autoimmune) | signif_autoimmune != "signif") ~ "wo_correcting_autoimmune",
+      TRUE ~ "non_signif"
+    ))
+  
+  combined_df$celltype <- ct
+  
+  contingency_table <- table(
+    Autoimmune = ifelse(combined_df$signif_autoimmune == "signif", "signif", "non_signif"),
+    Regular = ifelse(combined_df$signif_regular == "signif", "signif", "non_signif")
+  )
+  
+  # Default null result
+  plot_df <- data.frame(
+    category = "autoimmune_vs_regular",
+    OR = NA,
+    CI_low = NA,
+    CI_high = NA,
+    pvalue = NA,
+    celltype = ct
+  )
+  
+  # Only run Fisher if table is at least 2x2
+  if (nrow(contingency_table) >= 2 && ncol(contingency_table) >= 2) {
+    
+    # Apply Haldane–Anscombe correction (avoid Inf)
+    contingency_table <- contingency_table + 0.5
+    
+    fisher_res <- fisher.test(contingency_table)
+    
+    plot_df$OR <- fisher_res$estimate
+    plot_df$CI_low <- fisher_res$conf.int[1]
+    plot_df$CI_high <- fisher_res$conf.int[2]
+    plot_df$pvalue <- fisher_res$p.value
+  }
+  
+  return(list(combined_df = combined_df, plot_df = plot_df))
+}
+
+overlap_degs_F <-do.call(rbind.data.frame,lapply(cells_to_keep[!cells_to_keep%in% c("cDC2", "Plasmablast", "NK Proliferating", "NK_CD56bright")], function(ct) overlap_autoimmune(ct,  dea_autoimmune_F_df, deg_F)[[1]]))
+overlap_degs_F <- overlap_degs_F[overlap_degs_F$category!="non_signif",] %>% mutate(sex="Female")
+
+overlap_degs_M <-do.call(rbind.data.frame,lapply(cells_to_keep[!cells_to_keep%in% c("cDC2", "Plasmablast", "NK Proliferating", "NK_CD56bright")], function(ct) overlap_autoimmune(ct,  dea_autoimmune_M_df, deg_M)[[1]]))
+overlap_degs_M <- overlap_degs_M[overlap_degs_M$category!="non_signif",] %>% mutate(sex="Male")
+
+overlap_degs_signif <- rbind(overlap_degs_M, overlap_degs_F)
+
+overlap_degs_signif <- reorder_cells(overlap_degs_signif, neworder = T, reverse = T)
+
+overlap_degs_signif$category <- factor(overlap_degs_signif$category, levels= c("overlap_both", "wo_correcting_autoimmune", "excluding_autoimmune"))
+ggplot(overlap_degs_signif, aes(x=celltype, fill=category))+geom_bar(stat="count")+theme+coord_flip()+facet_grid(celltype_l1~sex, space = "free_y", scales = "free")+
+  scale_fill_manual(values=c("overlap_both"="grey", "wo_correcting_autoimmune"=alpha(red,0.8), "excluding_autoimmune"=alpha(blue, 0.8)), name="")+theme(legend.position="top")+ylab("nDEGs")
+
+
+
+fisher_degs_F <-do.call(rbind.data.frame,lapply(cells_to_keep[!cells_to_keep%in% c("cDC2", "Plasmablast", "NK Proliferating", "NK_CD56bright", "CD4 Naive", "CD8 TEM")], function(ct) overlap_autoimmune(ct,  dea_autoimmune_F_df, deg_F)[[2]])) %>% dplyr::mutate(sex="Females")
+fisher_degs_F$fdr <- p.adjust(fisher_degs_F$pvalue)
+
+
+fisher_degs_M <-do.call(rbind.data.frame,lapply(cells_to_keep[!cells_to_keep%in% c("cDC2", "Plasmablast", "NK Proliferating", "NK_CD56bright", "CD4 Naive", "CD8 TEM", "B naive", "B memory", "gdT")], function(ct) overlap_autoimmune(ct,  dea_autoimmune_M_df, deg_M)[[2]]))%>% dplyr::mutate(sex="Males")
+fisher_degs_M$fdr <- p.adjust(fisher_degs_M$pvalue)
+
+fisher_degs <- rbind(fisher_degs_F, fisher_degs_M)
+fisher_degs <- reorder_cells(fisher_degs, neworder=T)
+fisher_degs$signif <- ifelse(fisher_degs$fdr < 0.05, "yes", "no")
+
+ggplot(fisher_degs, aes(x=celltype, y=OR, color=sex, alpha=signif)) +
+  geom_point(position=position_dodge(width=0.6), size=3) +
+  geom_errorbar(aes(ymin=CI_low, ymax=CI_high), 
+                width=0.2, position=position_dodge(width=0.6)) +
+  geom_hline(yintercept=1, linetype="dashed", color="gray40") +scale_alpha_manual(values=c("yes"=1, "no"=0.4), name=)+
+  scale_y_log10() +facet_grid(celltype_l1~sex, scales = "free")+coord_flip()+
+  labs(y="OR (log10)", x="") +theme+scale_color_manual(values=c("Females"=blue, "Males"=red))+theme(legend.position="top")
+
+
+
+openxlsx::write.xlsx(fisher_degs, paste0(data_path, "/msopena/02_OneK1K_Age/SupplementaryTables/enrichment_DEGs_autoimmune.xlsx"))
+
+openxlsx::write.xlsx(dea_autoimmune_M_df, paste0(data_path, "/msopena/02_OneK1K_Age/SupplementaryTables/dea_M_autoimmune.xlsx"))
+
+openxlsx::write.xlsx(dea_autoimmune_F_df, paste0(data_path, "/msopena/02_OneK1K_Age/SupplementaryTables/dea_F_autoimmune.xlsx"))
+
+
+
+
+# Plot downsampling results setting distribution to menopause ---
+
+# read downsampligs
+read_list <- function(sex, all_data=F){
+  ds <- lapply(gsub(" ", "_",cells_to_keep), function(ct){
+    print(ct)
+    df <- do.call(rbind.data.frame, lapply(c(1:4), function(idx){
+      print(idx)
+      if(all_data){
+        print("reading real age coverage")
+        file <- paste0(data_path, "/aripol1/OneK1K_Age/pseudobulk_inrt_lmer/menopause/premenopausal_postmenopausal_subsampling_all_data/",sex, "/replication_", idx, "/sum/nCells_per_donor/cell_type/", ct, "/date/Age/min_prop.0.4/Age.lmer_nearZeroVar.by_metric.rds")
+      }else{
+        print("reading balanced age coverage")
+      file <- paste0(data_path, "/aripol1/OneK1K_Age/pseudobulk_inrt_lmer/menopause/premenopausal_postmenopausal/",sex, "/replication_", idx, "/sum/nCells_per_donor/cell_type/", ct, "/date/Age/min_prop.0.4/Age.lmer_nearZeroVar.by_metric.rds")}
+      if(file.exists(file)){
+        x <- readRDS(file)
+        x$idx <- idx
+        x$celltype <- ct
+        x$sex <- sex
+        return(x)
+      }
+    })) 
+    return(df)
+  })
+  return(ds)
+}
+
+
+ds_F <- do.call(rbind.data.frame, read_list("F"))
+saveRDS(ds_F, paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_balanced_coverage.rds"))
+ds_M <- do.call(rbind.data.frame, read_list("M"))
+saveRDS(ds_M, paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells_balanced_coverage.rds"))
+
+ds_F <- do.call(rbind.data.frame, read_list("F", all_data = T))
+saveRDS(ds_F, paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_real_coverage.rds"))
+ds_M <- do.call(rbind.data.frame, read_list("M", all_data = T))
+saveRDS(ds_M, paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells_real_coverage.rds"))
+
+
+
+
+ds_F_real <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_balanced_coverage.rds"))%>% mutate(class="real_age")
+ds_M_real <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells_balanced_coverage.rds"))%>% mutate(class="real_age")
+
+ds_F_balanced <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_real_coverage.rds")) %>% mutate(class="balanced_age")
+ds_M_balanced <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells_real_coverage.rds"))%>% mutate(class="balanced_age")
+
+
+ds_all <- rbind(ds_F_real,ds_M_real,  ds_F_balanced,ds_M_balanced ) %>% filter(fdr.log2cpm < 0.05)
+ds_all$celltype <- gsub("_", " ", ds_all$celltype)
+ds_all$celltype <- gsub("NK CD56bright", "NK_CD56bright", ds_all$celltype)
+ds_all$category <- "downsampling"
+
+# read real data 
+deg_M <-readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells.rds")) %>% dplyr::filter(fdr < 0.05)%>%mutate(sex="M")
+deg_F<- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells.rds")) %>% dplyr::filter(fdr < 0.05)%>%mutate(sex="F")
+deg_both <- rbind(deg_M, deg_F)
+deg_both$category <- deg_both$sex
+deg_both$idx <- 0
+deg_both <- deg_both %>% filter(celltype %in% cells_to_keep)
+deg_both$class <- "balanced_age"
+
+# add them and count them 
+ds_count <- ds_all %>% dplyr::group_by(sex, celltype, idx, category, class)%>%dplyr::count()
+deg_count <- deg_both %>% dplyr::group_by(sex, celltype, idx, category, class)%>%dplyr::count()
+deg_combined <- rbind(ds_count, deg_count)
+deg_combined <- reorder_cells(deg_combined, neworder = T, reverse = T)
+
+library(ggpubr)
+ggplot(deg_combined, aes(x=celltype, y=n, fill=class))+geom_boxplot(outlier.shape = NA)+geom_jitter(data=deg_combined[deg_combined$category!="downsampling",],category=2, aes( color=category))+theme+coord_flip()+
+  facet_grid(celltype_l1~sex, scales = "free", space="free_y")+theme(axis.text=element_text(size=10), legend.position="top")+scale_fill_manual(values=c("#777777","lightgrey"))+
+  scale_color_manual(values=c("downsampling"= "grey", "F"=blue, "M"=red))+labs(y="nDEGs", x="")+stat_compare_means(label = "p.signif")
+
+
+library(patchwork)
+(p_real + theme(strip.text.y=element_blank()))+(p_balanced+theme(axis.text.y=element_blank()))
+
+
+
+
+
+
+# now plot the age distribution of each downsampling 
+
+read_md <- function(sex, all_data=F){
+    df <- do.call(rbind.data.frame, lapply(c(1:4), function(idx){
+      print(idx)
+      if(all_data){
+        print("reading real age coverage")
+        file <- paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/menopause/premenopausal_postmenopausal_subsampling_all_data/",sex, "/replication_", idx, "/CD4_Naive_cell_type_sceraw.rds")
+      }else{
+        print("reading balanced age coverage")
+      file <- paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/menopause/premenopausal_postmenopausal/",sex, "/replication_", idx, "/CD4_Naive_cell_type_sceraw.rds")}
+      if(file.exists(file)){
+        x <- readRDS(file)
+        md <- as.data.frame(colData(x))
+        md_donor <- md[!duplicated(md$assignment), c("assignment", "Age", "Gender")]
+        md_donor$idx <- idx
+        md_donor$category <- "downsampling"
+        return(md_donor)
+      }
+    })) 
+    return(df)
+}
+
+md_ds_F <-read_md("F",T)
+md_ds_M <-read_md("M", T)
+
+
+md_ds_M_balanced<- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/menopause/donor_metadata_M.rds")) %>% mutate(class="balanced_age")
+md_ds_F_balanced <- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/menopause/donor_metadata_F.rds")) %>% mutate(class="balanced_age")
+
+md_ds_M_real <- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/menopause/donor_metadata_M_real_age.rds")) %>% mutate(class="real_age")
+md_ds_F_real <- readRDS(paste0(basepath, "Data/scRNAseq/Yazar2022/sce_data_objects/menopause/donor_metadata_F_real_age.rds")) %>% mutate(class="real_age")
+
+md_all_M_balanced <- metadata_donor[metadata_donor$Gender == "M",c("assignment", "Age", "Gender")] %>% mutate(idx="all", category="all_M", class="balanced_age")
+md_all_F_balanced <- metadata_donor[metadata_donor$Gender == "F",c("assignment", "Age", "Gender")] %>% mutate(idx="all", category="all_F", class="balanced_age")
+
+md_all_M_real <- metadata_donor[metadata_donor$Gender == "M",c("assignment", "Age", "Gender")] %>% mutate(idx="all", category="all_M", class="real_age")
+md_all_F_real <- metadata_donor[metadata_donor$Gender == "F",c("assignment", "Age", "Gender")] %>% mutate(idx="all", category="all_F", class="real_age")
+
+
+md_merged <- rbind(md_ds_M_balanced, md_ds_F_balanced,md_ds_M_real,  md_ds_F_real, md_ds_F_real, md_all_M_balanced, md_all_F_balanced, md_all_F_real, md_all_M_real)
+md_merged$idx <- factor(md_merged$idx, levels=as.character(c("all", 1:20)))
+
+ggplot(md_merged[md_merged$idx %in% c(1:4, "all"),], aes(x=idx, y=Age, fill=category))+geom_boxplot(outlier.shape = NA)+facet_grid(Gender~class)+theme+
+  scale_fill_manual(values=c(all_F=blue, all_M=red, "downsampling"="grey"), name="")+theme(legend.position="top")+xlab("downsampling")

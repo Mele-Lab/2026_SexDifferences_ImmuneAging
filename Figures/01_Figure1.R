@@ -39,7 +39,36 @@ cells_to_keep <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/cell
 tested_cells <-  readRDS(paste0( data_path, "/msopena/02_OneK1K_Age/robjects/tested_cells.rds"))
 cells_to_keep <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/cells_to_keep.rds"))
 
-# Figura 1A- CoDA analysis ------
+# Figure 1A Number of donors ------
+
+ndonors <- mdata_donor_cell %>% dplyr::group_by( Gender) %>% dplyr::count() %>% drop_na() %>%
+  mutate(sex=Gender) 
+ndonors <- reorder_cells(ndonors, neworder = T, reverse = T)
+
+p_ndonors<- ggplot(ndonors, aes(y=sex, x=n)) + geom_bar(stat="identity", aes(fill=sex), position = "dodge", alpha=0.6, width = 0.8)+  
+  theme  + xlab("nDonors") + ylab("") +scale_fill_manual(values=c("M"= red, "F"= blue))+
+  theme(axis.text.x=element_text(size=9), axis.title=element_text(size=11),  legend.position="none",strip.text=element_blank())
+
+
+# Number of cells 
+ncells <- metadata %>% dplyr::group_by(cell_type, Gender) %>% dplyr::count()
+colnames(ncells)[1] <- "celltype"
+
+ncells_l2 <-ggplot(ncells, aes(y=celltype, x=n, fill=Gender)) + geom_bar(stat="identity")+  scale_x_continuous(labels = function(x) format(x / 1e6, scientific = FALSE)) +
+  theme  + xlab("Number of cells l2 (million)") + ylab("") +scale_y_discrete(limits = levels(ncells$celltype))+coord_flip()+
+  theme(axis.text.y=element_text(size=10), axis.title=element_text(size=10), aspect.ratio=0.33, axis.text.x=element_text(angle = 90, hjust = 0.95, vjust = 0.6, size=10))
+
+# Number of cells per donor   
+
+ncells_donor <- metadata %>% dplyr::group_by(assignment, Gender) %>% dplyr::count()
+ncells_donor$cells_donor <- "NCells_donor"
+
+ncells_donor_p <-ggplot(ncells_donor, aes(x=n, fill=Gender )) + geom_density(fill=alpha(blue, 0.5), color=blue)+
+  theme  + xlab("Number of cells per donor") + ylab("Density") +geom_vline(xintercept = median(ncells_donor$n), color=blue, linetype="dashed")+
+  theme(axis.text.x=element_text(size=10), axis.text.y=element_text(size=10), axis.title=element_text(size=11), aspect.ratio=1)
+
+
+# Figura 1D- CoDA analysis ------
 
 coda_M <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/12_CellProportions_Sex/CODA_resultsAge_M.rds"))
 coda_M$sex <- "Males"
@@ -65,14 +94,6 @@ p_ncells <- ggplot(ncells, aes(y=celltype, x=n)) + geom_bar(stat="identity", aes
   theme(axis.text.x=element_text(size=9), axis.title=element_text(size=11),  legend.position="none",strip.text=element_blank())+ facet_grid(celltype_l1~ ., scales="free", space="free")
 
 
-#plot nDonors 
-ndonors <- mdata_donor_cell %>% dplyr::group_by(cell_type, Gender) %>% dplyr::count() %>% drop_na() %>% filter(cell_type %in%  coda$celltype )%>%
-  mutate(sex=Gender) %>% mutate(celltype=cell_type)
-ndonors <- reorder_cells(ndonors, neworder = T, reverse = T)
-
-p_ndonors<- ggplot(ndonors, aes(y=celltype, x=n)) + geom_bar(stat="identity", aes(fill=sex), position = "dodge", alpha=0.6, width = 0.8)+  
-  theme  + xlab("nDonors") + ylab("") +scale_fill_manual(values=c("M"= red, "F"= blue))+
-  theme(axis.text.x=element_text(size=9), axis.title=element_text(size=11),  legend.position="none",strip.text=element_blank())+ facet_grid(celltype_l1~ ., scales="free", space="free")
 
 #coda <- coda[coda$celltype %in% keep,]
 md <- metadata%>% tidyr::drop_na("cell_type")
@@ -95,7 +116,7 @@ fig1A
 
 
 
-#Figure 1B- Clustering of cell dynamics ---- 
+#Figure 1G-H- Clustering of cell dynamics ---- 
 library(stringr);library(pheatmap)
 
 props_m_raw <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/12_CellProportions_Sex/proportions_M.rds"))
@@ -163,8 +184,7 @@ Fig1B <- pheatmap(t(mean_per_age_decade_m_norm_reordered),
          border_color = NA)
 
 
-
-# Fig 1C - Plot 
+# plor examples
 
 clusters_info <- clusters_col
 clusters_info$celltype <-  str_extract(rownames(clusters_col), "^[^_]+")
@@ -210,37 +230,9 @@ fig_1d <-ggplot(props_df_subset[props_df_subset$Age > 25 &props_df_subset$Age< 9
 fig_1d
 
 
-
-
 # supplementary figures --- 
 
-#figure S2A - coda with all data -----
-# coda_all <- readRDS(paste0(data_path, "/msopena/02_OneK1K_Age/robjects/coda_results.rds"))$Age
-# coda_all$sex <- "AllData"
-# cada_merged <- rbind(coda_M[,intersect(colnames(coda_all), colnames(coda_F))], coda_F[,intersect(colnames(coda_all), colnames(coda_F))], coda_all)
-# cada_merged$significance <- ifelse(cada_merged$fdr< 0.05, "fdr<0.05","fdr>0.05")
-# cada_merged$celltype <- gsub("_", " ", cada_merged$celltype)
-# cada_merged$celltype <- gsub(" CD56bright", "_CD56bright", cada_merged$celltype)
-# cada_merged <- cada_merged[cada_merged$celltype %in% tested_cells, ]
-# 
-# 
-# cada_merged$direction <- ifelse(cada_merged$estimate < 0, "down", "up")
-# cada_merged$sex <- factor(cada_merged$sex, levels = c("Females", "Males", "AllData"))
-# cada_merged <- reorder_cells(cada_merged, neworder = T, reverse = T)
-# plot_codaall<- ggplot(cada_merged, aes(x=estimate, y=celltype)) + 
-#   geom_point(aes(alpha=significance, fill=sex, color=sex), size=4) + xlab("Estimate")+ylab(NULL)+
-#   geom_pointrange(aes(xmin=conf.low, xmax=conf.high, alpha=significance, fill=sex, color=sex), fatten = .1) +
-#   geom_vline(xintercept=0, linetype = "dashed")  + scale_fill_manual(values=c("Males"=red, "Females"=blue, "AllData"="#777777"))+scale_color_manual(values=c("Males"=red, "Females"=blue, "AllData"="#777777"))+
-#   theme + theme(axis.text = element_text(size = 11), axis.title=element_text(size=12), legend.position="top", legend.title=element_blank(),legend.key.size = unit(0.5, "lines")) +
-#   scale_alpha_manual(values=c(1, 0.4)) +facet_grid(celltype_l1~sex, space="free", scale="free_y")+ scale_x_continuous(limits = c(-0.022, 0.025), breaks = seq(-0.02, 0.02, by = 0.02))
-# 
-# 
-# pdf(paste0(data_path, "msopena/02_OneK1K_Age/figures/Fig1/FigS2_CoDA_All.pdf"), height =6.92, width= 5  )
-# plot_codaall
-# dev.off()
-
-
-#figure S2B - plot trajectories per group -----
+#figure S2F  - plot trajectories per group -----
 
 trajectories_plot <- ggplot(props_df_subset[props_df_subset$Age > 25 &props_df_subset$Age< 95, ], aes(x = Age, y =zscore_freq))+
   geom_smooth(aes(group = interaction(cell_type, sex), color=celltype, linetype=sex),size=0.6, alpha=0, span=0.7) +
@@ -258,7 +250,7 @@ dev.off()
 
 
 
-# Fig S2C - Plot trajectories per cell type ---  
+# Fig S2G - Plot trajectories per cell type ---  
 cell_trajectories_plot <- ggplot(props_df_subset[ props_df_subset$Age > 25 &props_df_subset$Age< 95 & !props_df_subset$cell_type %in% c("B memory", "CD14 Mono", "CD8 TCM"), ], aes(x = Age, y =zscore_freq )) +
   geom_smooth(aes(group = interaction(cell_type, sex), linetype=cell_trajectory, color = sex), alpha=0.1, span=0.8) +
   ylab("Frequency (z-score)") +scale_linetype(name="")+
@@ -274,7 +266,9 @@ dev.off()
 
 
 require(openxlsx)
-df_tosave <- list("CompositionalAnalysis"=all_genes, "NormProp_AgeBins"=mean_per_age_decade_m_norm, "CellTrajectories"=clusters_col)
+mean_per_age_decade_m_norm <- as.data.frame(mean_per_age_decade_m_norm)
+mean_per_age_decade_m_norm$celltype <- rownames(mean_per_age_decade_m_norm)
+df_tosave <- list("CompositionalAnalysis"=coda, "NormProp_AgeBins"=mean_per_age_decade_m_norm, "CellTrajectories"=clusters_col)
 write.xlsx(df_tosave, paste0(data_path, '/msopena/02_OneK1K_Age/SupplementaryTables/TableS2_CellDynamics.xlsx'))
 
 # 

@@ -87,9 +87,28 @@ pdf(paste0(figurespath, "/Fig4/Fig4A_DisgenetEnrichments.pdf"), width =7.15 ,hei
 Fig1E
 dev.off()
 
+# are the genes driving the enrichments still DEA when accounting for autoimmune diseases? 
+dea_autoimmune_F <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_autoimmune.rds")) %>% filter(fdr < 0.05)
+
+genes_autoimmune_cd4tcm <- final_enrich_results %>%filter(p_adjusted < 0.05)%>%  mutate(intersection = as.character(intersection)) %>%  # ensure it's a character column
+  separate_rows(intersection, sep = ",") %>%             # split by comma into multiple rows
+  mutate(intersection = trimws(intersection))             # remove extra whitespace
+
+dea_F <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells.rds")) %>% filter(fdr < 0.05)
+
+
+length(intersect(genes_autoimmune_cd4tcm$intersection, dea_autoimmune_F %>% filter(celltype=="CD4 TCM") %>% pull(ID)))
+
+length(intersect(genes_autoimmune_cd4tcm$intersection, dea_F %>% filter(celltype=="CD4 TCM") %>% pull(ID)))
+
+
+
+
 # 2. Overlap against GWAS database (Fig 4B) ----
 
 gwas_allgenes <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/FisherResults/FisherResults_AllDEGs_allGWAS.rds"))
+#gwas_allgenes <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/FisherResults/excluding_autoimmune/FisherResults_AllDEGs_allGWAS.rds"))
+
 gwas_allgenes <- gwas_allgenes %>%
   group_by(CellType) %>%
   mutate(AjdustedPValue = p.adjust(PValue, method = "fdr")) %>%
@@ -115,6 +134,22 @@ Fig1G <- ggplot(gwas_signif[!is.na(gwas_signif$OR) & gwas_signif$OR != Inf,], ae
 pdf(paste0(data_path, "//msopena/02_OneK1K_Age/figures/Fig1/Fig1G_GWAS.pdf"), width =6.65 ,height = 2.88)
 Fig1G
 dev.off()
+
+# are the genes driving the enrichments in autoimmune still DEA when accounting for autoimmune diseases? 
+dea_autoimmune_F <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells_autoimmune.rds")) %>% filter(fdr < 0.05)
+dea_F <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_F_nCells.rds")) %>% filter(fdr < 0.05)
+
+syst_sclerosis <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/systemic_sclerosis_genes.rds"))
+length(intersect(dea_autoimmune_F %>% filter(celltype =="CD4 TCM") %>% pull(ID), syst_sclerosis))
+length(intersect(dea_F %>% filter(celltype =="CD4 TCM") %>% pull(ID), syst_sclerosis))
+
+
+dea_autoimmune_M <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells_autoimmune.rds")) %>% filter(fdr < 0.05)
+dea_M <- readRDS(paste0(data_path, "msopena/02_OneK1K_Age/robjects/01_DEG_pseudobulk/deg_int_sex_M_nCells.rds")) %>% filter(fdr < 0.05)
+
+male_erichments <- readRDS( paste0(data_path, "msopena/02_OneK1K_Age/robjects/15_OverlapGWAS/male_enrichments_genes.rds"))
+length(intersect(dea_autoimmune_M %>% filter(celltype =="CD4_TCM") %>% pull(ID), male_erichments))
+length(intersect(dea_M %>% filter(celltype =="CD4 TCM") %>% pull(ID), male_erichments))
 
 
 
